@@ -5,19 +5,13 @@ from bson.objectid import ObjectId
 from bson.code import Code
 
 
-class MongoConnections(object):
+class MongoCollection(object):
 
     "Class to connect to Mongo DB"
 
-    def __init__(self):
-    """
-        Initializes Mongo Credentials to None
-    """
-        self.mongo_uri = None
-        self.db_name = None
-        self.collection = None
+    default_mongo_uri = 'mongodb://localhost:27017/'
 
-    def mongo_crendials(self, mongo_uri, db_name, collection_name):
+    def __init__(self, db_name, collection_name, select_keys, where_dict={}, mongo_uri=default_mongo_uri):
     """
         Initializes Mongo Credentials given by user
         :param mongo_uri: Server and Port informations
@@ -30,8 +24,10 @@ class MongoConnections(object):
         self.mongo_uri = mongo_uri
         self.db_name = db_name
         self.collection = collection_name
+        self.where_dict = where_dict
+        self.select_keys = select_keys
 
-    def get_mongo_cursor():
+    def get_mongo_cursor(self):
     """
         Returns Mongo cursor using the class variables
         :return: mongo collection for which cursor will be made
@@ -47,7 +43,7 @@ class MongoConnections(object):
             mongo_uri=self.mongo_uri, db_name=self.db_name, col=collection_name, error=str(e))
         raise Exception(msg)
 
-    def get_bulk_cursor():
+    def get_bulk_cursor(self):
         """
             Returns the Bulk operation(unordered) cursor using the configuration stored in the config file
         """
@@ -59,7 +55,7 @@ class MongoConnections(object):
                 error=str(e))
             raise Exception(msg)
 
-    def bulk_cursor_execute(bulk_cursor):
+    def bulk_cursor_execute(self, bulk_cursor):
         """
             Executes the bulk_cursor and handles exception
 
@@ -78,3 +74,87 @@ class MongoConnections(object):
             msg = "Mongo Bulk cursor could not be fetched, Error: {error}".format(
                 error=str(e))
             raise Exception(msg)
+
+
+class MongoAggregate(object):
+
+    "Class to Aggreagte on the collections"
+
+    def __init__(self, collection1, collection2, group_by_keys, join_type="inner"):
+    """
+        Initializes Mongo Aggreagte params to None
+    """
+        self.collection1 = collection1
+        self.collection2 = collection2
+        self.group_by_keys = group_by_keys
+        self.join_type = join_type
+
+    def build_mongo_doc(self, key_list):
+    """
+    """
+        mongo_doc = {}
+        if list and type(key_list) == list:
+            for key in key_list:
+                mongo_doc[key] = "$" + str(key)
+        return mongo_doc
+
+    def build_pipeline(self, collection):
+    """
+    """
+        pipeline = []
+        if collection.where_dict and type(collection.where_dict) == dict:
+            match_dict = {
+                "$match": collection.where_dict
+            }
+            pipeline.append(match_dict)
+
+        group_keys_dict = self.build_mongo_doc(self.group_by_keys)
+        push_dict = self.build_mongo_doc(collection.select_keys)
+
+        group_by_dict = {
+            "_id": group_by_keys,
+            "docs": {
+                "$push": push_dict
+            }
+        }
+        pipeline.append(group_by_dict)
+
+        return pipeline
+
+    def fetch_and_process_data(self, collection, pipeline):
+        """
+            Fetches and Processes data from the input collection by aggregating using the pipeline
+
+            :param collection_name: The collection name for which mongo connection has to be build
+            :type collection_name: string
+            :param pipeline: The pipeline using which aggregation will be performed
+            :type collection_name: list of dicts
+
+            :returns: dict of property_id,metric_count
+        """
+        grouped_docs = list(collection.get_mongo_cursor.aggregate(pipeline))
+        grouped_docs_dict = {}
+        while grouped_docs:
+            doc = grouped_docs.pop()
+            keys_list = []
+            for group_by_key in self.group_by_keys:
+                keys_list.append(doc["_id"].get(group_by_key, None))
+        grouped_docs_dict[set(keys_list)] = grouped_docs["docs"]
+        return grouped_docs_dict
+
+    def fetch_and_merge(self):
+        docs_dicts = []
+        for collection in [self.collection1, self.collection2]:
+            docs_dicts.append(self.build_pipeline(collection))
+
+        for key in docs_dicts[0]:
+            if docs_dicts[1].get(key):
+                docs_dicts[0][key] + docs_dicts[1][key]
+                del docs_dicts[1][key]
+
+        docs_dicts[0].update(docs_dicts[1])
+        del docs_dicts[1]
+        return docs_dicts[0]
+
+    def join_results(self):
+        return self.fetch_and_merge()
