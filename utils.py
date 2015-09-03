@@ -9,9 +9,9 @@ class MongoCollection(object):
 
     "Class to connect to Mongo DB"
 
-    default_mongo_uri = 'mongodb://localhost:27017/'
+    DEFAULT_MONGO_URI = 'mongodb://localhost:27017/'
 
-    def __init__(self, db_name, collection_name, select_keys, where_dict={}, mongo_uri=default_mongo_uri):
+    def __init__(self, db_name, collection_name, select_keys, where_dict={}, mongo_uri=DEFAULT_MONGO_URI):
     """
         Initializes Mongo Credentials given by user
         :param mongo_uri: Server and Port informations
@@ -27,9 +27,11 @@ class MongoCollection(object):
         self.where_dict = where_dict
         self.select_keys = select_keys
 
-    def get_mongo_cursor(self):
+    def get_mongo_cursor(self,bulk=False):
     """
         Returns Mongo cursor using the class variables
+        :param bulk: bulk writer option
+        :type bulk: boolean
         :return: mongo collection for which cursor will be made
         :rtype: mongo colection object
     """
@@ -37,23 +39,21 @@ class MongoCollection(object):
         client = MongoClient(self.mongo_uri)
         db = client[self.db_name]
         cursor = db[self.collection]
+
+        if bulk:
+            try:
+                return cursor.initialize_unordered_bulk_op()
+            except Exception as e:
+                msg = "Mongo Bulk cursor could not be fetched, Error: {error}".format(
+                    error=str(e))
+                raise Exception(msg)
         return cursor
+        
     except Exception as e:
         msg = "Mongo Connection could not be established for Mongo Uri: {mongo_uri}, Database: {db_name}, Collection {col}, Error: {error}".format(
             mongo_uri=self.mongo_uri, db_name=self.db_name, col=collection_name, error=str(e))
         raise Exception(msg)
 
-    def get_bulk_cursor(self):
-        """
-            Returns the Bulk operation(unordered) cursor using the configuration stored in the config file
-        """
-        try:
-            cursor = self.get_mongo_cursor()
-            return cursor.initialize_unordered_bulk_op()
-        except Exception as e:
-            msg = "Mongo Bulk cursor could not be fetched, Error: {error}".format(
-                error=str(e))
-            raise Exception(msg)
 
     def bulk_cursor_execute(self, bulk_cursor):
         """
@@ -134,16 +134,19 @@ class MongoAggregate(object):
         """
         grouped_docs = list(collection.get_mongo_cursor.aggregate(pipeline))
         grouped_docs_dict = {}
+
         while grouped_docs:
             doc = grouped_docs.pop()
             keys_list = []
             for group_by_key in self.group_by_keys:
                 keys_list.append(doc["_id"].get(group_by_key, None))
         grouped_docs_dict[set(keys_list)] = grouped_docs["docs"]
+
         return grouped_docs_dict
 
     def fetch_and_merge(self):
         docs_dicts = []
+
         for collection in [self.collection1, self.collection2]:
             docs_dicts.append(self.build_pipeline(collection))
 
