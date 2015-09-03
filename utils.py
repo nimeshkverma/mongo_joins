@@ -48,7 +48,7 @@ class MongoCollection(object):
                     error=str(e))
                 raise Exception(msg)
         return cursor
-        
+
     except Exception as e:
         msg = "Mongo Connection could not be established for Mongo Uri: {mongo_uri}, Database: {db_name}, Collection {col}, Error: {error}".format(
             mongo_uri=self.mongo_uri, db_name=self.db_name, col=collection_name, error=str(e))
@@ -89,20 +89,26 @@ class MongoAggregate(object):
         self.group_by_keys = group_by_keys
         self.join_type = join_type
 
+    
     def build_mongo_doc(self, key_list):
     """
+        :param key_list
+        :type  key_list: list
     """
         mongo_doc = {}
-        if list and type(key_list) == list:
+        if isinstance(key_list,list) and key_list:
             for key in key_list:
                 mongo_doc[key] = "$" + str(key)
+
         return mongo_doc
 
+    
     def build_pipeline(self, collection):
     """
     """
         pipeline = []
-        if collection.where_dict and type(collection.where_dict) == dict:
+
+        if isinstance(collection.where_dict,dict) and collection.where_dict:
             match_dict = {
                 "$match": collection.where_dict
             }
@@ -121,6 +127,7 @@ class MongoAggregate(object):
 
         return pipeline
 
+    
     def fetch_and_process_data(self, collection, pipeline):
         """
             Fetches and Processes data from the input collection by aggregating using the pipeline
@@ -144,6 +151,7 @@ class MongoAggregate(object):
 
         return grouped_docs_dict
 
+    
     def fetch_and_merge(self):
         docs_dicts = []
 
@@ -159,5 +167,6 @@ class MongoAggregate(object):
         del docs_dicts[1]
         return docs_dicts[0]
 
+    
     def join_results(self):
         return self.fetch_and_merge()
