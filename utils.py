@@ -12,15 +12,25 @@ class MongoCollection(object):
     DEFAULT_MONGO_URI = 'mongodb://localhost:27017/'
 
     def __init__(self, db_name, collection_name, select_keys, where_dict={}, mongo_uri=DEFAULT_MONGO_URI):
-    """
+        """
         Initializes Mongo Credentials given by user
+
         :param mongo_uri: Server and Port informations
-        :type mongo_uri: string
+        :type  mongo_uri: string
+
         :param db_name: Name of the database
-        :type db_name: string
+        :type  db_name: string
+
         :param collection_name: Name of the collection
-        :type collection_name: string
-    """
+        :type  collection_name: string
+
+        :param where_dict: 
+        :type  where_dict: dictionary
+
+        :param select_keys:
+        :type  select_keys:
+
+        """
         self.mongo_uri = mongo_uri
         self.db_name = db_name
         self.collection = collection_name
@@ -28,31 +38,33 @@ class MongoCollection(object):
         self.select_keys = select_keys
 
     def get_mongo_cursor(self,bulk=False):
-    """
-        Returns Mongo cursor using the class variables
-        :param bulk: bulk writer option
-        :type bulk: boolean
-        :return: mongo collection for which cursor will be made
-        :rtype: mongo colection object
-    """
-    try:
-        client = MongoClient(self.mongo_uri)
-        db = client[self.db_name]
-        cursor = db[self.collection]
+        """
+            Returns Mongo cursor using the class variables
+            
+            :param bulk: bulk writer option
+            :type bulk: boolean
 
-        if bulk:
-            try:
-                return cursor.initialize_unordered_bulk_op()
-            except Exception as e:
-                msg = "Mongo Bulk cursor could not be fetched, Error: {error}".format(
-                    error=str(e))
-                raise Exception(msg)
-        return cursor
+            :return: mongo collection for which cursor will be made
+            :rtype: mongo colection object
+        """
+        try:
+            client = MongoClient(self.mongo_uri)
+            db = client[self.db_name]
+            cursor = db[self.collection]
 
-    except Exception as e:
-        msg = "Mongo Connection could not be established for Mongo Uri: {mongo_uri}, Database: {db_name}, Collection {col}, Error: {error}".format(
-            mongo_uri=self.mongo_uri, db_name=self.db_name, col=collection_name, error=str(e))
-        raise Exception(msg)
+            if bulk:
+                try:
+                    return cursor.initialize_unordered_bulk_op()
+                except Exception as e:
+                    msg = "Mongo Bulk cursor could not be fetched, Error: {error}".format(error=str(e))
+                    raise Exception(msg)
+
+            return cursor
+
+        except Exception as e:
+            msg = "Mongo Connection could not be established for Mongo Uri: {mongo_uri}, Database: {db_name}, Collection {col}, Error: {error}".format(
+                mongo_uri=self.mongo_uri, db_name=self.db_name, col=collection_name, error=str(e))
+            raise Exception(msg)
 
 
     def bulk_cursor_execute(self, bulk_cursor):
@@ -78,12 +90,16 @@ class MongoCollection(object):
 
 class MongoAggregate(object):
 
-    "Class to Aggreagte on the collections"
+    "Class to Aggregate on the collections"
 
     def __init__(self, collection1, collection2, group_by_keys, join_type="inner"):
-    """
-        Initializes Mongo Aggreagte params to None
-    """
+        """
+        Initializes Mongo Aggregate params to None
+
+        :param join_type: Type of join operation to be performed
+        :type  join_type: String
+
+        """
         self.collection1 = collection1
         self.collection2 = collection2
         self.group_by_keys = group_by_keys
@@ -91,10 +107,10 @@ class MongoAggregate(object):
 
     
     def build_mongo_doc(self, key_list):
-    """
-        :param key_list
-        :type  key_list: list
-    """
+        """
+            :param key_list
+            :type  key_list: list
+        """
         mongo_doc = {}
         if isinstance(key_list,list) and key_list:
             for key in key_list:
@@ -104,8 +120,8 @@ class MongoAggregate(object):
 
     
     def build_pipeline(self, collection):
-    """
-    """
+        """
+        """
         pipeline = []
 
         if isinstance(collection.where_dict,dict) and collection.where_dict:
@@ -147,6 +163,7 @@ class MongoAggregate(object):
             keys_list = []
             for group_by_key in self.group_by_keys:
                 keys_list.append(doc["_id"].get(group_by_key, None))
+                
         grouped_docs_dict[set(keys_list)] = grouped_docs["docs"]
 
         return grouped_docs_dict
@@ -165,6 +182,7 @@ class MongoAggregate(object):
 
         docs_dicts[0].update(docs_dicts[1])
         del docs_dicts[1]
+
         return docs_dicts[0]
 
     
