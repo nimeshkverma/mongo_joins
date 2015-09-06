@@ -3,6 +3,7 @@ from pymongo import MongoClient, ReadPreference
 from pymongo.errors import BulkWriteError
 from bson.objectid import ObjectId
 from bson.code import Code
+from collections import Counter
 
 
 class MongoCollection(object):
@@ -11,7 +12,7 @@ class MongoCollection(object):
 
     DEFAULT_MONGO_URI = 'mongodb://localhost:27017/'
 
-    def __init__(self, db_name, collection_name, select_keys, where_dict={}, mongo_uri=DEFAULT_MONGO_URI):
+    def __init__(self, db_name, collection_name, select_keys=[], where_dict={}, mongo_uri=DEFAULT_MONGO_URI):
         """
         Initializes Mongo Credentials given by user
 
@@ -24,11 +25,11 @@ class MongoCollection(object):
         :param collection_name: Name of the collection
         :type  collection_name: string
 
-        :param where_dict: 
+        :param where_dict: Filters  (Date range etc.)
         :type  where_dict: dictionary
 
-        :param select_keys:
-        :type  select_keys:
+        :param select_keys: Keys to be fetched after merging
+        :type  select_keys: list (priority)
 
         """
         self.mongo_uri = mongo_uri
@@ -37,10 +38,10 @@ class MongoCollection(object):
         self.where_dict = where_dict
         self.select_keys = select_keys
 
-    def get_mongo_cursor(self,bulk=False):
+    def get_mongo_cursor(self, bulk=False):
         """
             Returns Mongo cursor using the class variables
-            
+
             :param bulk: bulk writer option
             :type bulk: boolean
 
@@ -56,16 +57,16 @@ class MongoCollection(object):
                 try:
                     return cursor.initialize_unordered_bulk_op()
                 except Exception as e:
-                    msg = "Mongo Bulk cursor could not be fetched, Error: {error}".format(error=str(e))
+                    msg = "Mongo Bulk cursor could not be fetched, Error: {error}".format(
+                        error=str(e))
                     raise Exception(msg)
 
             return cursor
 
         except Exception as e:
             msg = "Mongo Connection could not be established for Mongo Uri: {mongo_uri}, Database: {db_name}, Collection {col}, Error: {error}".format(
-                mongo_uri=self.mongo_uri, db_name=self.db_name, col=collection_name, error=str(e))
+                mongo_uri=self.mongo_uri, db_name=self.db_name, col=self.collection, error=str(e))
             raise Exception(msg)
-
 
     def bulk_cursor_execute(self, bulk_cursor):
         """
@@ -88,43 +89,50 @@ class MongoCollection(object):
             raise Exception(msg)
 
 
-class MongoAggregate(object):
+class CollectionsProcessedData(object):
 
-    "Class to Aggregate on the collections"
+    "Class to Fetch and Process data from the collections"
 
-    def __init__(self, collection1, collection2, group_by_keys, join_type="inner"):
+    def __init__(self, left_collection, right_collection, group_by_keys=[]):
         """
         Initializes Mongo Aggregate params to None
 
         :param join_type: Type of join operation to be performed
         :type  join_type: String
 
-        """
-        self.collection1 = collection1
-        self.collection2 = collection2
-        self.group_by_keys = group_by_keys
-        self.join_type = join_type
+        :param group_by_keys: Attributes on which the join is to be performed
+        :type  group_by_keys: list
 
-    
+        """
+        self.left_collection = left_collection
+        self.right_collection = right_collection
+        self.group_by_keys = group_by_keys
+        self.collections_data = {}
+
     def build_mongo_doc(self, key_list):
         """
             :param key_list
             :type  key_list: list
         """
         mongo_doc = {}
-        if isinstance(key_list,list) and key_list:
+
+        if isinstance(key_list, list) and key_list:
+
             for key in key_list:
                 mongo_doc[key] = "$" + str(key)
 
         return mongo_doc
 
-    
     def build_pipeline(self, collection):
         """
+            :param collection:  
+            :type  collection: MongoCollection
+
+            :return pipeline: list of dicts
         """
         pipeline = []
 
-        if isinstance(collection.where_dict,dict) and collection.where_dict:
+        if isinstance(collection.where_dict, dict) and collection.where_dict:
             match_dict = {
                 "$match": collection.where_dict
             }
@@ -134,57 +142,101 @@ class MongoAggregate(object):
         push_dict = self.build_mongo_doc(collection.select_keys)
 
         group_by_dict = {
-            "_id": group_by_keys,
-            "docs": {
-                "$push": push_dict
-            }
+            "$group":
+                {
+                    "_id": group_keys_dict,
+                    "docs": {
+                        "$push": push_dict
+                    }
+                }
         }
+
         pipeline.append(group_by_dict)
 
         return pipeline
 
-    
     def fetch_and_process_data(self, collection, pipeline):
         """
             Fetches and Processes data from the input collection by aggregating using the pipeline
 
-            :param collection_name: The collection name for which mongo connection has to be build
-            :type collection_name: string
+            :param collection: The collection name for which mongo connection has to be build
+            :type  collection: MongoCollection
+
             :param pipeline: The pipeline using which aggregation will be performed
-            :type collection_name: list of dicts
+            :type  pipeline: list of dicts
 
             :returns: dict of property_id,metric_count
         """
-        grouped_docs = list(collection.get_mongo_cursor.aggregate(pipeline))
+        collection_cursor = collection.get_mongo_cursor()
+        grouped_docs = list(collection_cursor.aggregate(pipeline))
         grouped_docs_dict = {}
-
         while grouped_docs:
             doc = grouped_docs.pop()
             keys_list = []
             for group_by_key in self.group_by_keys:
                 keys_list.append(doc["_id"].get(group_by_key, None))
-                
-        grouped_docs_dict[set(keys_list)] = grouped_docs["docs"]
+            grouped_docs_dict[tuple(keys_list)] = doc['docs']
 
         return grouped_docs_dict
 
-    
-    def fetch_and_merge(self):
-        docs_dicts = []
+    def get_collections_data(self):
+        collections = {
+            'left': self.left_collection,
+            'right': self.right_collection
+        }
+        for collection_type, collection in collections.iteritems():
+            pipeline = self.build_pipeline(collection)
+            self.collections_data[collection_type] = self.fetch_and_process_data(
+                collection, pipeline)
 
-        for collection in [self.collection1, self.collection2]:
-            docs_dicts.append(self.build_pipeline(collection))
 
-        for key in docs_dicts[0]:
-            if docs_dicts[1].get(key):
-                docs_dicts[0][key] + docs_dicts[1][key]
-                del docs_dicts[1][key]
+class MongoJoins(CollectionsProcessedData):
 
-        docs_dicts[0].update(docs_dicts[1])
-        del docs_dicts[1]
+    "Class to perform Inner Join on collections"
 
-        return docs_dicts[0]
+    def inner(self):
+        self.get_collections_data()
 
-    
-    def join_results(self):
-        return self.fetch_and_merge()
+        for key in self.collections_data['left']:
+            if self.collections_data['right'].get(key):
+                self.collections_data['left'][key].update(
+                    self.collections_data['right'][key])
+                del self.collections_data['right'][key]
+            else:
+                del self.collections_data['left'][key]
+        return self.collections_data['left']
+
+    def left_outer(self):
+        self.get_collections_data()
+
+        for key in self.collections_data['left']:
+            if self.collections_data['right'].get(key):
+                self.collections_data['left'][key].update(
+                    self.collections_data['right'][key])
+                del self.collections_data['right'][key]
+        return self.collections_data['left']
+
+    def right_outer(self):
+        self.get_collections_data()
+
+        for key in self.collections_data['right']:
+            if self.collections_data['left'].get(key):
+                self.collections_data['right'][key].update(
+                    self.collections_data['left'][key])
+                del self.collections_data['left'][key]
+        return self.collections_data['right']
+
+    def full_outer(self):
+        self.get_collections_data()
+
+        for key in self.collections_data['left']:
+            if self.collections_data['right'].get(key):
+                self.collections_data['left'][key].update(
+                    self.collections_data['right'][key])
+                del self.collections_data['right'][key]
+
+        for key in self.collections_data['right']:
+            self.collections_data['left'][
+                key] = self.collections_data['right'][key]
+            del self.collections_data['right'][key]
+        return self.collections_data['left']
