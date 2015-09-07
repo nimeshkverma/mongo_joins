@@ -113,6 +113,8 @@ class CollectionsProcessedData(object):
         """
             :param key_list
             :type  key_list: list
+
+            :returns mongo_doc: dict
         """
         mongo_doc = {}
 
@@ -169,9 +171,11 @@ class CollectionsProcessedData(object):
         collection_cursor = collection.get_mongo_cursor()
         grouped_docs = list(collection_cursor.aggregate(pipeline))
         grouped_docs_dict = {}
+
         while grouped_docs:
             doc = grouped_docs.pop()
             keys_list = []
+
             for group_by_key in self.group_by_keys:
                 keys_list.append(doc["_id"].get(group_by_key, None))
             grouped_docs_dict[tuple(keys_list)] = doc['docs']
@@ -185,8 +189,7 @@ class CollectionsProcessedData(object):
         }
         for collection_type, collection in collections.iteritems():
             pipeline = self.build_pipeline(collection)
-            self.collections_data[collection_type] = self.fetch_and_process_data(
-                collection, pipeline)
+            self.collections_data[collection_type] = self.fetch_and_process_data(collection, pipeline)
 
 
 class MongoJoins(CollectionsProcessedData):
