@@ -11,8 +11,9 @@ class MongoCollection(object):
     "Class to connect to Mongo DB"
 
     DEFAULT_MONGO_URI = 'mongodb://localhost:27017/'
+    DEFAULT_PORT = 27017
 
-    def __init__(self, db_name, collection_name, select_keys=[], where_dict={}, mongo_uri=DEFAULT_MONGO_URI):
+    def __init__(self, db_name, collection_name, select_keys=[], where_dict={}, host=None, port=None, mongo_uri=DEFAULT_MONGO_URI):
         """
         Initializes Mongo Credentials given by user
 
@@ -37,6 +38,8 @@ class MongoCollection(object):
         self.collection = collection_name
         self.where_dict = where_dict
         self.select_keys = select_keys
+        self.host = host
+        self.port = port
 
     def get_mongo_cursor(self, bulk=False):
         """
@@ -49,7 +52,15 @@ class MongoCollection(object):
             :rtype: mongo colection object
         """
         try:
-            client = MongoClient(self.mongo_uri)
+            if self.host:
+                if self.port:
+                    client = MongoClient(self.host,self.port)
+                else:
+                    client = MongoClient(self.host,MongoCollection.DEFAULT_PORT)
+            else:
+
+                client = MongoClient(self.mongo_uri)
+
             db = client[self.db_name]
             cursor = db[self.collection]
 
