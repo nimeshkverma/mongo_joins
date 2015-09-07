@@ -11,7 +11,7 @@ class MongoCollection(object):
 
     DEFAULT_MONGO_URI = 'mongodb://localhost:27017/'
 
-    def __init__(self, db_name, collection_name, select_keys, where_dict={}, mongo_uri=DEFAULT_MONGO_URI):
+    def __init__(self, db_name, collection_name, select_keys=[], where_dict={}, mongo_uri=DEFAULT_MONGO_URI):
         """
         Initializes Mongo Credentials given by user
 
@@ -24,11 +24,11 @@ class MongoCollection(object):
         :param collection_name: Name of the collection
         :type  collection_name: string
 
-        :param where_dict: 
+        :param where_dict: Filters  (Date range etc.)
         :type  where_dict: dictionary
 
-        :param select_keys:
-        :type  select_keys:
+        :param select_keys: Keys to be fetched after merging
+        :type  select_keys: list (priority)
 
         """
         self.mongo_uri = mongo_uri
@@ -63,7 +63,7 @@ class MongoCollection(object):
 
         except Exception as e:
             msg = "Mongo Connection could not be established for Mongo Uri: {mongo_uri}, Database: {db_name}, Collection {col}, Error: {error}".format(
-                mongo_uri=self.mongo_uri, db_name=self.db_name, col=collection_name, error=str(e))
+                mongo_uri=self.mongo_uri, db_name=self.db_name, col=self.collection, error=str(e))
             raise Exception(msg)
 
 
@@ -92,18 +92,20 @@ class MongoAggregate(object):
 
     "Class to Aggregate on the collections"
 
-    def __init__(self, collection1, collection2, group_by_keys, join_type="inner"):
+    def __init__(self, collection1, collection2, group_by_keys =[]):
         """
         Initializes Mongo Aggregate params to None
 
         :param join_type: Type of join operation to be performed
         :type  join_type: String
 
+        :param group_by_keys: Attributes on which the join is to be performed
+        :type  group_by_keys: list
+
         """
         self.collection1 = collection1
         self.collection2 = collection2
         self.group_by_keys = group_by_keys
-        self.join_type = join_type
 
     
     def build_mongo_doc(self, key_list):
@@ -112,7 +114,11 @@ class MongoAggregate(object):
             :type  key_list: list
         """
         mongo_doc = {}
+        #print key_list
+        #print isinstance(key_list,list)
+
         if isinstance(key_list,list) and key_list:
+
             for key in key_list:
                 mongo_doc[key] = "$" + str(key)
 
@@ -121,6 +127,10 @@ class MongoAggregate(object):
     
     def build_pipeline(self, collection):
         """
+            :param collection:  
+            :type  collection: MongoCollection
+
+            :return pipeline: list of dicts
         """
         pipeline = []
 
@@ -131,14 +141,18 @@ class MongoAggregate(object):
             pipeline.append(match_dict)
 
         group_keys_dict = self.build_mongo_doc(self.group_by_keys)
-        push_dict = self.build_mongo_doc(collection.select_keys)
+        push_dict       = self.build_mongo_doc(collection.select_keys)
 
-        group_by_dict = {
-            "_id": group_by_keys,
-            "docs": {
-                "$push": push_dict
+        group_by_dict = { 
+            "$group":
+                {
+                    "_id": group_keys_dict,
+                    "docs": {
+                    "$push": push_dict
+                    }
+                }
             }
-        }
+
         pipeline.append(group_by_dict)
 
         return pipeline
@@ -148,23 +162,27 @@ class MongoAggregate(object):
         """
             Fetches and Processes data from the input collection by aggregating using the pipeline
 
-            :param collection_name: The collection name for which mongo connection has to be build
-            :type collection_name: string
+            :param collection: The collection name for which mongo connection has to be build
+            :type  collection: MongoCollection
+
             :param pipeline: The pipeline using which aggregation will be performed
-            :type collection_name: list of dicts
+            :type  pipeline: list of dicts
 
             :returns: dict of property_id,metric_count
         """
-        grouped_docs = list(collection.get_mongo_cursor.aggregate(pipeline))
+        collection_cursor = collection.get_mongo_cursor()
+        #print collection_cursor
+        grouped_docs = list(collection_cursor.aggregate(pipeline))
         grouped_docs_dict = {}
-
+        #print grouped_docs
         while grouped_docs:
             doc = grouped_docs.pop()
             keys_list = []
             for group_by_key in self.group_by_keys:
+                #print group_by_key,1000
                 keys_list.append(doc["_id"].get(group_by_key, None))
-                
-        grouped_docs_dict[set(keys_list)] = grouped_docs["docs"]
+                #print keys_list
+            grouped_docs_dict[tuple(keys_list)] = doc['docs']
 
         return grouped_docs_dict
 
@@ -173,18 +191,9 @@ class MongoAggregate(object):
         docs_dicts = []
 
         for collection in [self.collection1, self.collection2]:
-            docs_dicts.append(self.build_pipeline(collection))
-
-        for key in docs_dicts[0]:
-            if docs_dicts[1].get(key):
-                docs_dicts[0][key] + docs_dicts[1][key]
-                del docs_dicts[1][key]
-
-        docs_dicts[0].update(docs_dicts[1])
-        del docs_dicts[1]
-
-        return docs_dicts[0]
-
-    
-    def join_results(self):
-        return self.fetch_and_merge()
+            #print collection
+            pipeline = self.build_pipeline(collection)
+            
+            #print pipeline,20
+            docs_dicts.append(self.fetch_and_process_data(collection,pipeline))
+        return docs_dicts
