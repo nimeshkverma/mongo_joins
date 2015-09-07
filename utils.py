@@ -120,7 +120,6 @@ class CollectionsProcessedData(object):
 
             for key in key_list:
                 mongo_doc[key] = "$" + str(key)
-
         return mongo_doc
 
     def build_pipeline(self, collection):
@@ -196,12 +195,10 @@ class MongoJoins(CollectionsProcessedData):
 
     def inner(self):
         self.get_collections_data()
-
-        for key in self.collections_data['left']:
+        for key in self.collections_data['left'].keys():
             if self.collections_data['right'].get(key):
-                self.collections_data['left'][key].update(
-                    self.collections_data['right'][key])
-                del self.collections_data['right'][key]
+                self.collections_data['left'][key] += \
+                    self.collections_data['right'].pop(key, [])
             else:
                 del self.collections_data['left'][key]
         return self.collections_data['left']
@@ -210,33 +207,29 @@ class MongoJoins(CollectionsProcessedData):
         self.get_collections_data()
 
         for key in self.collections_data['left']:
-            if self.collections_data['right'].get(key):
-                self.collections_data['left'][key].update(
-                    self.collections_data['right'][key])
-                del self.collections_data['right'][key]
+            self.collections_data['left'][key] += \
+                self.collections_data['right'].pop(key, [])
+
         return self.collections_data['left']
 
     def right_outer(self):
         self.get_collections_data()
 
         for key in self.collections_data['right']:
-            if self.collections_data['left'].get(key):
-                self.collections_data['right'][key].update(
-                    self.collections_data['left'][key])
-                del self.collections_data['left'][key]
+            self.collections_data['right'][key] += \
+                self.collections_data['left'].pop(key, [])
+
         return self.collections_data['right']
 
     def full_outer(self):
         self.get_collections_data()
 
         for key in self.collections_data['left']:
-            if self.collections_data['right'].get(key):
-                self.collections_data['left'][key].update(
-                    self.collections_data['right'][key])
-                del self.collections_data['right'][key]
+            self.collections_data['left'][key] += \
+                self.collections_data['right'].pop(key, [])
 
         for key in self.collections_data['right']:
             self.collections_data['left'][
                 key] = self.collections_data['right'][key]
-            del self.collections_data['right'][key]
+
         return self.collections_data['left']
