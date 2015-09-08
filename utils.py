@@ -178,7 +178,7 @@ class CollectionsProcessedData(object):
             :param pipeline: The pipeline using which aggregation will be performed
             :type  pipeline: list of dicts
 
-            :returns: dict of property_id,metric_count
+            :return grouped_docs_dict: dict of property_id,metric_count
         """
         collection_cursor = collection.get_mongo_cursor()
         grouped_docs = list(collection_cursor.aggregate(pipeline))
@@ -195,6 +195,7 @@ class CollectionsProcessedData(object):
         return grouped_docs_dict
 
     def get_collections_data(self):
+
         collections = {
             'left': self.left_collection,
             'right': self.right_collection
@@ -210,12 +211,31 @@ class MongoJoins(CollectionsProcessedData):
     "Class to perform Inner Join on collections"
 
     def change_dict_keys(self, data_dict, prefix):
-        changed_data_dict = {}
-        for key in data_dict:
-            changed_data_dict[prefix + str(key)] = data_dict.pop(key)
-        return changed_data_dict
+        """
+            :param data_dict: dictionary which is to be altered
+            :type  data_dict: dict
+
+            :param prefix: prefix to be attached before every key
+            :type  prefix: string
+
+            :return dict_: dict
+        """
+        keys = data_dict.keys()
+        changed_dict = {}
+        for key in keys:
+            changed_dict[prefix + str(key)] = data_dict.pop(key)
+        return changed_dict
 
     def generate_join_docs_list(self, left_collection_list, right_collection_list):
+        """
+            :param left_collection_list: Left Collection to be joined
+            :type  left_collection_list: MongoCollection
+
+            :param right_collection_list: Right Collection to be joined
+            :type  right_collection_list: MongoCollection
+
+            :return joined_docs: List of docs post join
+        """
         joined_docs = []
         if left_collection_list and right_collection_list:
             for left_doc in left_collection_list:
@@ -230,7 +250,14 @@ class MongoJoins(CollectionsProcessedData):
                 joined_docs.append(self.change_dict_keys(right_doc, 'R_'))
         return joined_docs
 
+
     def merge_join_docs(self, keys):
+        """
+            :param left_collection_list: 
+            :type  left_collection_list: MongoCollection
+
+            :return join: dict
+        """
         join = defaultdict(list)
         for key in keys:
             join[key] = self.generate_join_docs_list(
@@ -238,25 +265,44 @@ class MongoJoins(CollectionsProcessedData):
         return join
 
     def inner(self):
+        """
+            Function to perform Inner Join
+            :return inner_join: dict
+        """
         self.get_collections_data()
         inner_join = self.merge_join_docs(set(self.collections_data['left'].keys()) and set(
             self.collections_data['right'].keys()))
         return inner_join
 
     def left_outer(self):
+        """
+            Function to perform Left Outer Join
+            :return left_outer: dict
+        """
         self.get_collections_data()
         left_outer_join = self.merge_join_docs(
             set(self.collections_data['left'].keys()))
         return left_outer_join
 
     def right_outer(self):
+        """
+            Function to perform Right Outer Join
+            :return right_outer: dict
+        """
         self.get_collections_data()
         right_outer_join = self.merge_join_docs(
             set(self.collections_data['right'].keys()))
         return right_outer_join
 
     def full_outer(self):
+        """
+            Function to perform Full Outer Join
+            :return full_outer: dict
+        """
         self.get_collections_data()
         full_outer_join = self.merge_join_docs(
             set(self.collections_data['left'].keys()) or set(self.collections_data['right'].keys()))
         return full_outer_join
+
+
+
