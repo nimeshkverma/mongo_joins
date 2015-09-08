@@ -3,7 +3,7 @@ from pymongo import MongoClient, ReadPreference
 from pymongo.errors import BulkWriteError
 from bson.objectid import ObjectId
 from bson.code import Code
-from collections import Counter
+from collections import defaultdict
 
 
 class MongoCollection(object):
@@ -54,9 +54,10 @@ class MongoCollection(object):
         try:
             if self.host:
                 if self.port:
-                    client = MongoClient(self.host,self.port)
+                    client = MongoClient(self.host, self.port)
                 else:
-                    client = MongoClient(self.host,MongoCollection.DEFAULT_PORT)
+                    client = MongoClient(
+                        self.host, MongoCollection.DEFAULT_PORT)
             else:
 
                 client = MongoClient(self.mongo_uri)
@@ -200,50 +201,62 @@ class CollectionsProcessedData(object):
         }
         for collection_type, collection in collections.iteritems():
             pipeline = self.build_pipeline(collection)
-            self.collections_data[collection_type] = self.fetch_and_process_data(collection, pipeline)
+            self.collections_data[collection_type] = self.fetch_and_process_data(
+                collection, pipeline)
 
 
 class MongoJoins(CollectionsProcessedData):
 
     "Class to perform Inner Join on collections"
 
+    def change_dict_keys(self, data_dict, prefix):
+        changed_data_dict = {}
+        for key in data_dict:
+            changed_data_dict[prefix + str(key)] = data_dict.pop(key)
+        return changed_data_dict
+
+    def generate_join_docs_list(self, left_collection_list, right_collection_list):
+        joined_docs = []
+        if left_collection_list and right_collection_list:
+            for left_doc in left_collection_list:
+                for right_doc in right_collection_list:
+                    joined_docs.append(
+                        dict(self.change_dict_keys(left_doc, 'L_'), **self.change_dict_keys(right_doc, 'R_')))
+        elif left_collection_list:
+            for left_doc in left_collection_list:
+                joined_docs.append(self.change_dict_keys(left_doc, 'L_'))
+        else:
+            for right_doc in right_collection_list:
+                joined_docs.append(self.change_dict_keys(right_doc, 'R_'))
+        return joined_docs
+
+    def merge_join_docs(self, keys):
+        join = defaultdict(list)
+        for key in keys:
+            join[key] = self.generate_join_docs_list(
+                self.collections_data['left'].get(key, []), self.collections_data['right'].get(key, []))
+        return join
+
     def inner(self):
         self.get_collections_data()
-        for key in self.collections_data['left'].keys():
-            if self.collections_data['right'].get(key):
-                self.collections_data['left'][key] += \
-                    self.collections_data['right'].pop(key, [])
-            else:
-                del self.collections_data['left'][key]
-        return self.collections_data['left']
+        inner_join = self.merge_join_docs(set(self.collections_data['left'].keys()) and set(
+            self.collections_data['right'].keys()))
+        return inner_join
 
     def left_outer(self):
         self.get_collections_data()
-
-        for key in self.collections_data['left']:
-            self.collections_data['left'][key] += \
-                self.collections_data['right'].pop(key, [])
-
-        return self.collections_data['left']
+        left_outer_join = self.merge_join_docs(
+            set(self.collections_data['left'].keys()))
+        return left_outer_join
 
     def right_outer(self):
         self.get_collections_data()
-
-        for key in self.collections_data['right']:
-            self.collections_data['right'][key] += \
-                self.collections_data['left'].pop(key, [])
-
-        return self.collections_data['right']
+        right_outer_join = self.merge_join_docs(
+            set(self.collections_data['right'].keys()))
+        return right_outer_join
 
     def full_outer(self):
         self.get_collections_data()
-
-        for key in self.collections_data['left']:
-            self.collections_data['left'][key] += \
-                self.collections_data['right'].pop(key, [])
-
-        for key in self.collections_data['right']:
-            self.collections_data['left'][
-                key] = self.collections_data['right'][key]
-
-        return self.collections_data['left']
+        full_outer_join = self.merge_join_docs(
+            set(self.collections_data['left'].keys()) or set(self.collections_data['right'].keys()))
+        return full_outer_join
