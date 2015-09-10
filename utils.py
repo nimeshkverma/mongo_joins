@@ -1,4 +1,5 @@
 import datetime
+import copy
 from pymongo import MongoClient, ReadPreference
 from pymongo.errors import BulkWriteError
 from bson.objectid import ObjectId
@@ -221,9 +222,10 @@ class MongoJoins(CollectionsProcessedData):
             :return dict_: dict
         """
         keys = data_dict.keys()
+        dummy_dict = copy.deepcopy(data_dict)
         changed_dict = {}
         for key in keys:
-            changed_dict[prefix + str(key)] = data_dict.pop(key)
+            changed_dict[prefix + str(key)] = dummy_dict.pop(key)
         return changed_dict
 
     def generate_join_docs_list(self, left_collection_list, right_collection_list):
@@ -237,17 +239,20 @@ class MongoJoins(CollectionsProcessedData):
             :return joined_docs: List of docs post join
         """
         joined_docs = []
-        if left_collection_list and right_collection_list:
+        if (len(left_collection_list) != 0) and (len(right_collection_list) != 0):
             for left_doc in left_collection_list:
                 for right_doc in right_collection_list:
-                    joined_docs.append(
-                        dict(self.change_dict_keys(left_doc, 'L_'), **self.change_dict_keys(right_doc, 'R_')))
+                    l_dict = self.change_dict_keys(left_doc, 'L_')
+                    r_dict = self.change_dict_keys(right_doc, 'R_')
+                    joined_docs.append(dict(l_dict, **r_dict))
         elif left_collection_list:
             for left_doc in left_collection_list:
                 joined_docs.append(self.change_dict_keys(left_doc, 'L_'))
         else:
             for right_doc in right_collection_list:
                 joined_docs.append(self.change_dict_keys(right_doc, 'R_'))
+
+
         return joined_docs
 
 
@@ -259,6 +264,7 @@ class MongoJoins(CollectionsProcessedData):
             :return join: dict
         """
         join = defaultdict(list)
+
         for key in keys:
             join[key] = self.generate_join_docs_list(
                 self.collections_data['left'].get(key, []), self.collections_data['right'].get(key, []))
@@ -270,6 +276,7 @@ class MongoJoins(CollectionsProcessedData):
             :return inner_join: dict
         """
         self.get_collections_data()
+
         inner_join = self.merge_join_docs(set(self.collections_data['left'].keys()) and set(
             self.collections_data['right'].keys()))
         return inner_join
