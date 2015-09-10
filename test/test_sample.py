@@ -36,12 +36,17 @@ def test_MongoJoins():
     post_obj, user_obj = test_mongo_connections()
     mongo_join_obj = MongoJoins(
         post_obj, user_obj, ['email'])
-    print mongo_join_obj.inner()
+    print 'inner'
+    for x, v in mongo_join_obj.inner().iteritems():
+        print x, v
     print 'left'
-    print mongo_join_obj.left_outer()
+    for x, v in mongo_join_obj.left_outer().iteritems():
+        print x, v
     print 'right'
-    print mongo_join_obj.right_outer()
+    for x, v in mongo_join_obj.right_outer().iteritems():
+        print x, v
     print 'full'
-    print mongo_join_obj.full_outer()
+    for x, v in mongo_join_obj.full_outer().iteritems():
+        print x, v
 
 test_MongoJoins()

@@ -250,7 +250,6 @@ class MongoJoins(CollectionsProcessedData):
                 joined_docs.append(self.change_dict_keys(right_doc, 'R_'))
         return joined_docs
 
-
     def merge_join_docs(self, keys):
         """
             :param left_collection_list: 
@@ -270,7 +269,7 @@ class MongoJoins(CollectionsProcessedData):
             :return inner_join: dict
         """
         self.get_collections_data()
-        inner_join = self.merge_join_docs(set(self.collections_data['left'].keys()) and set(
+        inner_join = self.merge_join_docs(set(self.collections_data['left'].keys()) & set(
             self.collections_data['right'].keys()))
         return inner_join
 
@@ -301,8 +300,5 @@ class MongoJoins(CollectionsProcessedData):
         """
         self.get_collections_data()
         full_outer_join = self.merge_join_docs(
-            set(self.collections_data['left'].keys()) or set(self.collections_data['right'].keys()))
+            set(self.collections_data['left'].keys()) | set(self.collections_data['right'].keys()))
         return full_outer_join
-
-
-
