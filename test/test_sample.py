@@ -8,9 +8,9 @@ from utils import *
 
 def test_mongo_connections():
     post_obj = MongoCollection(
-        'tumblelog', 'post', ['email', "Roll no"], {}, 'mongodb://10.1.6.211:27017/')
+        'tumblelog', 'post', ['email', "Roll no"], {"email": "h@example.com"}, 'mongodb://10.1.6.211:27017/')
     user_obj = MongoCollection('tumblelog', 'user', [
-                               'email', "first_name", "last_name"], {}, 'mongodb://10.1.6.211:27017/')
+                               'email', "first_name", "last_name"], {"email": "h@example.com"}, 'mongodb://10.1.6.211:27017/')
     return post_obj, user_obj
 
 print test_mongo_connections()
