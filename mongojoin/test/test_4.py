@@ -1,26 +1,24 @@
+import os
+import sys
+
+SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
+sys.path = [os.path.join(SCRIPT_DIR + '/../')] + sys.path
+
 from mongojoin import MongoJoin
 from mongojoin import MongoCollection
 from utils import print_dict, print_list
 
 if __name__ == "__main__":
 
-    m_1 = MongoCollection("test", "supplier", ["supplier_id"], {})
-    # replace host accordingly
-    m_2 = MongoCollection(
-        "test", "order", ["supplier_id"], {}, host='localhost')
+    m_1 = MongoCollection("test", "supplier", ["supplier_id", "name"], {})
 
     c_1 = m_1.get_mongo_cursor()
-    c_2 = m_2.get_mongo_cursor()
 
     print "************************ COLLECTION : SUPPLIER ************************"
     c = c_1.find({})
     print_list(c)
 
-    print "************************ COLLECTION  : ORDER **************************"
-    c = c_2.find({})
-    print_list(c)
-
-    aggregator = MongoJoin(m_1, m_2, ["supplier_id"])
+    aggregator = MongoJoin(m_1, m_1, ["supplier_id"])
 
     print "\n************************ INNER JOIN **********************"
     print_dict(aggregator.inner())

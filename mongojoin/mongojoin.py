@@ -1,6 +1,12 @@
+import os
+import sys
 import datetime
 import copy
 from collections import defaultdict
+
+SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
+sys.path = [os.path.join(SCRIPT_DIR + '/../')] + sys.path
+
 from processdata import CollectionsProcessedData
 from mongocollection import MongoCollection
 
@@ -78,8 +84,10 @@ class MongoJoin(CollectionsProcessedData):
             :return inner_join: dict
         """
         self.get_collections_data()
-        inner_join = self.merge_join_docs(set(self.collections_data['left'].keys()) & set(
+
+        inner_join = self.merge_join_docs(set(self.collections_data['left'].keys()) and set(
             self.collections_data['right'].keys()))
+
         return inner_join
 
     def left_outer(self):
@@ -109,5 +117,5 @@ class MongoJoin(CollectionsProcessedData):
         """
         self.get_collections_data()
         full_outer_join = self.merge_join_docs(
-            set(self.collections_data['left'].keys()) | set(self.collections_data['right'].keys()))
+            set(self.collections_data['left'].keys()) or set(self.collections_data['right'].keys()))
         return full_outer_join
