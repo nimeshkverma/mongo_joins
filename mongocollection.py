@@ -4,6 +4,16 @@ from pymongo.errors import BulkWriteError
 from bson.objectid import ObjectId
 from bson.code import Code
 
+class MongoCollectionError(Exception):
+
+    "Exceptions for MongoCollection class"
+
+    def __init__(self,msg):
+        """
+            Initializes exceptions class with a custom message
+        """
+        self.msg = msg
+
 
 class MongoCollection(object):
 
@@ -39,6 +49,9 @@ class MongoCollection(object):
         self.select_keys = select_keys
         self.host = host
         self.port = port
+
+        if len(select_keys) == 0:
+            raise MongoCollectionError("select_keys not specified : Nothing to select from collection")
 
     def get_mongo_cursor(self, bulk=False):
         """

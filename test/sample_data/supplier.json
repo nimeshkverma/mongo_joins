@@ -1,0 +1,7 @@
+{ "supplier_id" : 1007, "name" : "AMD" }
+{ "supplier_id" : 1005, "name" : "Xerox" }
+{ "supplier_id" : 1002, "name" : "Microsoft" }
+{ "supplier_id" : 1003, "name" : "IBM" }
+{ "supplier_id" : 1006, "name" : "Lenovo" }
+{ "supplier_id" : 1004, "name" : "Apple" }
+{ "supplier_id" : 1001, "name" : "HP" }
