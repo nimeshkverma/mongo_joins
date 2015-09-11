@@ -1,4 +1,4 @@
-def pp(x):
+def print_dict(x):
     for i, j in x.iteritems():
         print i, j
 

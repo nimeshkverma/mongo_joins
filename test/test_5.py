@@ -1,6 +1,6 @@
 from mongojoin import MongoJoin
 from mongojoin import MongoCollection
-from utils import pp, print_list
+from utils import print_dict, print_list
 
 if __name__ == "__main__":
 
@@ -11,4 +11,4 @@ if __name__ == "__main__":
     aggregator = MongoJoin(m_1, m_1, ["supplier_id"])
 
     print "\n************************ INNER JOIN **********************"
-    pp(aggregator.inner())
+    print_dict(aggregator.inner())
