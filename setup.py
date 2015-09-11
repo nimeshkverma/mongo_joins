@@ -8,4 +8,4 @@ setup(name='mongojoin',
       url='https://github.com/nimeshkverma/mongo_joins',
       py_modules=['mongojoin'],
       install_requires=['pymongo']
-     )
+      )
