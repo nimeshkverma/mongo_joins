@@ -4,6 +4,7 @@ from collections import defaultdict
 from processdata import CollectionsProcessedData
 from mongocollection import MongoCollection
 
+
 class MongoJoin(CollectionsProcessedData):
 
     "Perform all Joins on collections"
