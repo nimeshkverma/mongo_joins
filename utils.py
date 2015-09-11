@@ -14,11 +14,9 @@ class MongoCollection(object):
     DEFAULT_MONGO_URI = 'mongodb://localhost:27017/'
     DEFAULT_PORT = 27017
 
-<<<<<<< HEAD
-    def __init__(self, db_name, collection_name, select_keys=[], where_dict={}, mongo_uri=DEFAULT_MONGO_URI):
-=======
+
     def __init__(self, db_name, collection_name, select_keys=[], where_dict={}, host=None, port=None, mongo_uri=DEFAULT_MONGO_URI):
->>>>>>> origin/master
+
         """
         Initializes Mongo Credentials given by user
 
@@ -301,9 +299,7 @@ class MongoJoins(CollectionsProcessedData):
             for right_doc in right_collection_list:
                 joined_docs.append(self.change_dict_keys(right_doc, 'R_'))
 
-
         return joined_docs
-
 
     def merge_join_docs(self, keys):
         """
@@ -325,8 +321,7 @@ class MongoJoins(CollectionsProcessedData):
             :return inner_join: dict
         """
         self.get_collections_data()
-
-        inner_join = self.merge_join_docs(set(self.collections_data['left'].keys()) and set(
+        inner_join = self.merge_join_docs(set(self.collections_data['left'].keys()) & set(
             self.collections_data['right'].keys()))
         return inner_join
 
@@ -357,9 +352,12 @@ class MongoJoins(CollectionsProcessedData):
         """
         self.get_collections_data()
         full_outer_join = self.merge_join_docs(
-            set(self.collections_data['left'].keys()) or set(self.collections_data['right'].keys()))
+            set(self.collections_data['left'].keys()) | set(self.collections_data['right'].keys()))
         return full_outer_join
+<<<<<<< HEAD
 
 
 
 >>>>>>> origin/master
+=======
+>>>>>>> master
