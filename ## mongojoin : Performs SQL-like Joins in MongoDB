@@ -1,0 +1,85 @@
+## mongojoin : Performs SQL-like Joins in MongoDB
+
+This is an attempt to provide SQL-like joins to users of MongoDB, who fetch related data from different collections frequently, with a library to combine data from more than one collection
+
+MongoDB is a de-normalized database and does not offer methods to perform “join” action on collections.
+
+GitHub Link : https://github.com/nimeshkverma/mongo_joins 
+
+Feel free to raise issues and contribute.
+
+### Installation:
+
+To install the package, type the following :
+
+    pip install mongojoin
+
+
+### How to Use
+
+1.Import the following in the Python Script/Shell
+
+    >>> from mongojoin.mongojoin import MongoJoin, MongoCollection
+
+2.Create a MongoCollection object (One for each of the two collections to be joined)
+
+    >>> collection = MongoCollection("db_name","collection_name",["collection_select_key_1", "collection_select_key_2"], {filter_key : filter_value})
+
+
+**R_select_key1 , R_select_key2** : Key, Value pairs to be fetched after join
+
+**filter_key : filter_value** : Filters for aggregating data prior to performing Join
+
+3.Create a MongoJoin object to perform the join.
+
+
+    >>> join_object = MongoJoin(collection_left, collection_right, ["join_key_2","join_key_2"])
+
+**join_key_1** : Key on which join is to be performed
+**join_key_2** : Key on which join is to be performed
+
+
+4.All the join functions return a DefaultDict object
+
+To perform inner join 
+
+	>>> result = join_object.inner()
+
+To perform left-outer join
+
+	>>> result = join_object.left_outer()
+
+To perform right-outer join
+
+	>>> result = join_object.right_outer()
+
+To perform full-outer join
+
+	>>> result = join_object.full_outer()
+
+
+Example:
+
+**To perform join on two collections: *supplier* and *order* on supplier_id with results having the keys: supplier_id, name and qty and condition supplier_id == 1001**
+
+	>>> from mongojoin.mongojoin import MongoJoin
+	>>> from mongojoin.mongojoin import
+
+	>>> supplier = MongoCollection("test", "supplier", ["supplier_id", "name"], {"supplier_id": 1001})
+	>>> order = MongoCollection("test", "order", ["supplier_id", "qty"], {"supplier_id": 1001})
+
+	>>> aggregator = MongoJoin(supplier, order, ["supplier_id"])
+
+	>>> inner_join_result 		= aggregator.inner()
+	>>> left_outer_join_result 	= aggregator.left_outer()
+	>>> right_outer_join_result	= aggregator.right_outer()
+	>>> full_outer_join_result 	= aggregator.full_outer()
+
+This is equivalent to following sql query:
+
+	SELECT supplier.supplier_id, supplier.name, order.supplier_id, order.qty FROM supplier JOIN order ON supplier.supplier_id = order.supplier_id WHERE supplier.supplier_id = 1001 AND order.supplier_id = 1001
+
+
+Let us know if you have any queries here -
+nimesh.aug11@gmail.com
+utsav.tiwary2011@gmail.com
